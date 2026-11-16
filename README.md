@@ -31,7 +31,7 @@ This technical report documents the deployment, hardening, and operational valid
 
 ## 1. Introducción
 
-La administración moderna de infraestructuras Linux exige dominar la interfaz de línea de comandos (CLI) para aprovisionar, auditar y asegurar servicios esenciales de red sin depender de entornos gráficos[cite: 1]. En distribuciones empresariales derivadas de Red Hat Enterprise Linux (RHEL), como **CentOS Stream**, la puesta en producción de demonios de red implica coordinar tres capas de defensa: el filtrado de paquetes en red mediante `firewalld`, el confinamiento de procesos y contextos de archivos mediante *Security-Enhanced Linux* (SELinux) y la gestión granular de privilegios de usuario mediante módulos PAM (*Pluggable Authentication Modules*)[cite: 1].
+La administración moderna de infraestructuras Linux exige dominar la interfaz de línea de comandos (CLI) para aprovisionar, auditar y asegurar servicios esenciales de red sin depender de entornos gráficos. En distribuciones empresariales derivadas de Red Hat Enterprise Linux (RHEL), como **CentOS Stream**, la puesta en producción de demonios de red implica coordinar tres capas de defensa: el filtrado de paquetes en red mediante `firewalld`, el confinamiento de procesos y contextos de archivos mediante *Security-Enhanced Linux* (SELinux) y la gestión granular de privilegios de usuario mediante módulos PAM (*Pluggable Authentication Modules*).
 
 De acuerdo con Hidalgo Guijarro et al. [1], una configuración robusta de servidores Linux requiere delimitar estrictamente los puertos expuestos, restringir las cuentas operativas destinadas exclusivamente a transferencia de archivos y garantizar una referencia horaria unificada para la correlación confiable de registros de auditoría (*logs*). En el presente informe y su correspondiente **Runbook Operativo en GitHub Wiki**, se documenta paso a paso la implementación, verificación de calidad (QA) y resolución de fallos reales sobre CentOS Stream conectándose directamente con un nodo cliente Windows anfitrión.
 
@@ -40,14 +40,14 @@ De acuerdo con Hidalgo Guijarro et al. [1], una configuración robusta de servid
 ## 2. Objetivos
 
 ### 2.1 Objetivo General
-Configurar servicios de red corporativos (acceso remoto SSH, almacenamiento FTP, servidor web HTTP y sincronización horaria NTP) sobre CentOS Stream mediante un entorno virtualizado, aplicando políticas estrictas de seguridad en `firewalld` y SELinux para garantizar su correcto funcionamiento y validación operativa[cite: 4].
+Configurar servicios de red corporativos (acceso remoto SSH, almacenamiento FTP, servidor web HTTP y sincronización horaria NTP) sobre CentOS Stream mediante un entorno virtualizado, aplicando políticas estrictas de seguridad en `firewalld` y SELinux para garantizar su correcto funcionamiento y validación operativa.
 
 ### 2.2 Objetivos Específicos
-* Desplegar y configurar un servidor de almacenamiento y transferencia de archivos (`vsftpd`) estableciendo el enjaulamiento (`chroot`), un usuario sin consola interactiva (`/sbin/nologin`) y las políticas de seguridad requeridas en el sistema operativo[cite: 4, 5].
-* Implementar un servicio de sincronización horaria corporativa (`chronyd`/NTP) para mantener la precisión temporal entre el servidor CentOS Stream y el equipo cliente Windows[cite: 4, 6].
-* Desplegar un servidor web HTTP (`httpd`), modificando la página predeterminada (`/var/www/html/index.html`) para incorporar los datos de los integrantes y un recurso gráfico validado bajo contextos SELinux[cite: 4, 5, 7].
-* Establecer las directrices de seguridad en el cortafuegos (`firewalld`) y políticas de control de acceso obligatorio (SELinux) requeridas para la operación segura de cada servicio[cite: 4].
-* Documentar el procedimiento de validación QA y el plan de contingencia (*troubleshooting*) ante incidentes comunes de seguridad y red en las cuatro pestañas del Runbook de GitHub Wiki[cite: 4, 6].
+* Desplegar y configurar un servidor de almacenamiento y transferencia de archivos (`vsftpd`) estableciendo el enjaulamiento (`chroot`), un usuario sin consola interactiva (`/sbin/nologin`) y las políticas de seguridad requeridas en el sistema operativo.
+* Implementar un servicio de sincronización horaria corporativa (`chronyd`/NTP) para mantener la precisión temporal entre el servidor CentOS Stream y el equipo cliente Windows.
+* Desplegar un servidor web HTTP (`httpd`), modificando la página predeterminada (`/var/www/html/index.html`) para incorporar los datos de los integrantes y un recurso gráfico validado bajo contextos SELinux.
+* Establecer las directrices de seguridad en el cortafuegos (`firewalld`) y políticas de control de acceso obligatorio (SELinux) requeridas para la operación segura de cada servicio.
+* Documentar el procedimiento de validación QA y el plan de contingencia (*troubleshooting*) ante incidentes comunes de seguridad y red en las cuatro pestañas del Runbook de GitHub Wiki.
 
 ---
 
@@ -57,11 +57,11 @@ Configurar servicios de red corporativos (acceso remoto SSH, almacenamiento FTP,
 
 | Componente | Especificación Técnica | Función en la Infraestructura |
 | :--- | :--- | :--- |
-| **Equipo Anfitrión (Cliente)** | Windows (PowerShell 5.1, Navegador Web) | Nodo cliente para pruebas HTTP, sincronización NTP (`w32time`) y administración remota[cite: 5, 6, 22, 25]. |
-| **Hipervisor** | Oracle VM VirtualBox (Red en modo *Bridged Adapter*) | Virtualización del servidor invitado con visibilidad directa en la subred local `192.168.18.0/24`[cite: 5, 15]. |
-| **Servidor Invitado** | CentOS Stream (`localhost.localdomain`, interfaz `enp0s3`) | Servidor corporativo con dirección IPv4 `192.168.18.157/24` y usuario administrativo `jgalarza`[cite: 15, 21]. |
-| **Cliente Remoto** | MobaXterm Personal Edition v26.5 | Ejecución de sesiones SSH administrativas y transferencias de archivos por FTP pasivo[cite: 5, 15, 18]. |
-| **Servicios Desplegados** | OpenSSH (`sshd`), `vsftpd`, Apache `httpd` 2.4.63, `chronyd` 4.9 | Pila de servicios de red auditados bajo `firewalld` y SELinux en modo `Enforcing`[cite: 4, 21, 24]. |
+| **Equipo Anfitrión (Cliente)** | Windows (PowerShell 5.1, Navegador Web) | Nodo cliente para pruebas HTTP, sincronización NTP (`w32time`) y administración remota. |
+| **Hipervisor** | Oracle VM VirtualBox (Red en modo *Bridged Adapter*) | Virtualización del servidor invitado con visibilidad directa en la subred local `192.168.18.0/24`. |
+| **Servidor Invitado** | CentOS Stream (`localhost.localdomain`, interfaz `enp0s3`) | Servidor corporativo con dirección IPv4 `192.168.18.157/24` y usuario administrativo `jgalarza`. |
+| **Cliente Remoto** | MobaXterm Personal Edition v26.5 | Ejecución de sesiones SSH administrativas y transferencias de archivos por FTP pasivo. |
+| **Servicios Desplegados** | OpenSSH (`sshd`), `vsftpd`, Apache `httpd` 2.4.63, `chronyd` 4.9 | Pila de servicios de red auditados bajo `firewalld` y SELinux en modo `Enforcing`. |
 
 ### 3.2 Diagrama de Arquitectura y Topología de Red
 
